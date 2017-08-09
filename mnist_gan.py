@@ -117,11 +117,12 @@ def optimizer(loss, var_list, algo='adam'):
     return optimizer
 
 
-def generator(input, training=True, hdim=1024):
+def generator(input, training=True, hdim=1024, minibatch_disc=False):
     h0 = dense_layer(input, hdim, activation='leakyrelu',
                      scope='dense0', training=training)
-    h0_mini = minibatch_disc_layer(h0)
-    h1 = dense_layer(h0_mini, 7*7*64, activation='leakyrelu',
+    if minibatch_disc:
+        h0 = minibatch_disc_layer(h0)
+    h1 = dense_layer(h0, 7*7*64, activation='leakyrelu',
                      scope='dense1', training=training)
     h1_reshape = tf.reshape(h1, [-1, 7, 7, 64])
     batch_size = tf.shape(h1_reshape)[0]
@@ -142,7 +143,8 @@ def generator(input, training=True, hdim=1024):
     return tf.sigmoid(h3), h3
 
 
-def discriminator(input, training=True, h_dim=1024, keep_prob=0.5):
+def discriminator(input, training=True, h_dim=1024, keep_prob=0.5,
+                  minibatch_disc=False):
     def max_pool_2x2(x):
         return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1], padding='SAME')
@@ -156,8 +158,9 @@ def discriminator(input, training=True, h_dim=1024, keep_prob=0.5):
                     training=training, batch_norm=True)
     hpool_1 = max_pool_2x2(h1)
     hflat_1 = tf.reshape(hpool_1, [-1, 7*7*128])
-    h1_mini = minibatch_disc_layer(hflat_1)
-    h2 = dense_layer(h1_mini, h_dim, scope='dense2', activation='leakyrelu',
+    if minibatch_disc:
+        hflat_1 = minibatch_disc_layer(hflat_1)
+    h2 = dense_layer(hflat_1, h_dim, scope='dense2', activation='leakyrelu',
                      batch_norm=True, training=training)
     h2_drop = tf.nn.dropout(h2, keep_prob)
     h3 = dense_layer(h2_drop, h_dim, scope='dense3', activation='leakyrelu',
@@ -175,7 +178,8 @@ class GAN(object):
         # Generator Network
         with tf.variable_scope('G'):
             self.x = tf.placeholder(tf.float32, [None, 32], name='g-input')
-            self.G = generator(self.x, training=self.training)
+            self.G = generator(self.x, training=self.training,
+                               minibatch_disc=True)
 
         # Discriminator Network
         self.z = tf.placeholder(tf.float32, [None, 784], name='d-input')
@@ -184,12 +188,14 @@ class GAN(object):
         with tf.variable_scope('D'):
             self.D1, self.D1_logits = discriminator(self.z,
                                                     training=self.training,
-                                                    keep_prob=self.keep_prob)
+                                                    keep_prob=self.keep_prob,
+                                                    minibatch_disc=True)
         # Second Discriminator for generated images
         with tf.variable_scope('D', reuse=True):
             self.D2, self.D2_logits = discriminator(self.G,
                                                     training=self.training,
-                                                    keep_prob=self.keep_prob)
+                                                    keep_prob=self.keep_prob,
+                                                    minibatch_disc=True)
 
         def sigmoid_cross_entropy_with_logits(x, y):
             try:
