@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib
+import time
 from tensorflow.examples.tutorials.mnist import input_data
 matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
@@ -149,15 +150,15 @@ def discriminator(input, training=True, h_dim=1024, keep_prob=0.5,
         return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1], padding='SAME')
     input = tf.reshape(input, [-1, 28, 28, 1])
-    h0 = conv_layer(input, [5, 5, 1, 64], [1, 1, 1, 1], activation='leakyrelu',
+    h0 = conv_layer(input, [5, 5, 1, 128], [1, 1, 1, 1], activation='leakyrelu',
                     scope='conv0', training=training, batch_norm=True)
     hpool_0 = max_pool_2x2(h0)
 
-    h1 = conv_layer(hpool_0, [5, 5, 64, 128], [1, 1, 1, 1],
+    h1 = conv_layer(hpool_0, [5, 5, 128, 64], [1, 1, 1, 1],
                     activation='leakyrelu', scope='conv1',
                     training=training, batch_norm=True)
     hpool_1 = max_pool_2x2(h1)
-    hflat_1 = tf.reshape(hpool_1, [-1, 7*7*128])
+    hflat_1 = tf.reshape(hpool_1, [-1, 7*7*64])
     if minibatch_disc:
         hflat_1 = minibatch_disc_layer(hflat_1)
     h2 = dense_layer(hflat_1, h_dim, scope='dense2', activation='leakyrelu',
@@ -226,8 +227,10 @@ class GAN(object):
         self.d_opt = optimizer(self.d_loss, self.d_param, algo='adam')
         self.g_opt = optimizer(self.g_loss, self.g_param, algo='adam')
 
+        tf.getDefaultGraph().finalize()
+
     def train(self, data, n_iter=1000, k_iter=2, minibatch_size=128,
-              preview=False, digit=5):
+              preview=False):
         print('Starting Training')
         if preview:  # initialize plotting environment
             fig, ax = plt.subplots(2, 2)
@@ -237,6 +240,7 @@ class GAN(object):
             g_hist = []
             d_hist = []
             for i in range(n_iter):
+                start = time.time()
                 for j in range(k_iter):
                     batch = data.train.next_batch(minibatch_size)
                     d_loss, d_result = sess.run(
@@ -257,9 +261,10 @@ class GAN(object):
                                     self.training: True,
                                     self.keep_prob: 1.0})
                 g_hist.append(g_loss)
+                iter_time = time.time() - start
                 if i % 1 == 0:
-                    print("Iteration {}:\tD Loss={:.6f}\tG Loss={:.6f}"
-                          .format(i, d_loss, g_loss))
+                    print("Iteration {}:\tTime={.2f}s\tD Loss={:.6f}\tG Loss={:.6f}"
+                          .format(i, iter_time, d_loss, g_loss))
                     if preview:
                         output = sess.run(self.G,
                                           {self.x:
