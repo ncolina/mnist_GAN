@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 def generator_input(size):
-    return np.random.random([size, 32])
+    return np.random.random([size, 100])
 
 
 def log(x):
@@ -177,7 +177,7 @@ class GAN(object):
 
         # Generator Network
         with tf.variable_scope('G'):
-            self.x = tf.placeholder(tf.float32, [None, 32], name='g-input')
+            self.x = tf.placeholder(tf.float32, [None, 100], name='g-input')
             self.G = generator(self.x, training=self.training,
                                minibatch_disc=True)
 
