@@ -266,9 +266,9 @@ class GAN(object):
                                            generator_input(size=1),
                                            self.training: False,
                                            self.keep_prob: 1.0})
-                        output = np.reshape(output[0], (-1, 28, 28))
+                        output = np.reshape(output, (-1, 28, 28))
                         plt.ion()
-                        ax[0][0].imshow(output, cmap='Greys')
+                        ax[0][0].imshow(output[0], cmap='Greys')
                         ax[0][1].plot(g_hist)
                         ax[1][1].plot(d_hist)
                         plt.pause(0.001)
