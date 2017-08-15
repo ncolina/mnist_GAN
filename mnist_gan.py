@@ -26,7 +26,7 @@ def minibatch_disc_layer(input, num_kernels=5, kernel_dim=3, scope=None):
             tf.expand_dims(tf.transpose(activation, [1, 2, 0]), 0)
         abs_diffs = tf.reduce_sum(tf.abs(diffs), 2)
         minibatch_features = tf.reduce_sum(tf.exp(-abs_diffs), 2)
-        return tf.concat(1, [input, minibatch_features])
+        return tf.concat([input, minibatch_features], 1)
 
 
 # dense_layer
@@ -229,6 +229,8 @@ class GAN(object):
     def train(self, data, n_iter=1000, k_iter=2, minibatch_size=128,
               preview=False, digit=5):
         print('Starting Training')
+        if preview:  # initialize plotting environment
+            fig, ax = plt.subplots(2, 2)
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             saver = tf.train.Saver()
@@ -264,13 +266,18 @@ class GAN(object):
                                            generator_input(size=1),
                                            self.training: False,
                                            self.keep_prob: 1.0})
-                        output = np.reshape(output, (-1, 28, 28))
+                        output = np.reshape(output[0], (-1, 28, 28))
                         plt.ion()
-                        plt.imshow(output[0], cmap='Greys')
+                        ax[0][0].imshow(output, cmap='Greys')
+                        ax[0][1].plot(g_hist)
+                        ax[1][1].plot(d_hist)
                         plt.pause(0.001)
-                        plt.axis('off')
+                        ax[0][0].axis('off')
+                        ax[1][0].axis('off')
                         plt.pause(0.001)
-                        plt.title('Iteration {}'.format(i))
+                        ax[0][0].set_title('Iteration {}'.format(i))
+                        ax[0][1].set_title('G Loss')
+                        ax[1][1].set_title('D Loss')
                         plt.pause(0.001)
                 saver.save(sess, 'mnist-gan')
         if preview:
@@ -281,5 +288,5 @@ class GAN(object):
 if __name__ == '__main__':
     model = GAN()
     mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
-    hist = model.train(mnist, n_iter=5000, k_iter=1,
-                       preview=True, minibatch_size=32, digit=5)
+    hist = model.train(mnist, n_iter=20000, k_iter=2,
+                       preview=True, minibatch_size=128)
