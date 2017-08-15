@@ -128,14 +128,14 @@ def generator(input, training=True, hdim=1024, minibatch_disc=False):
     h1_reshape = tf.reshape(h1, [-1, 7, 7, 64])
     batch_size = tf.shape(h1_reshape)[0]
     deconv_shape = [batch_size, 14, 14, 32]
-    h2 = conv_layer(h1_reshape, filter=[5, 5, 32, 64], stride=[1, 2, 2, 1],
+    h2 = conv_layer(h1_reshape, filter=[4, 4, 32, 64], stride=[1, 2, 2, 1],
                     output_shape=deconv_shape,
                     inverse=True, activation='leakyrelu',
                     scope='conv2', training=training,
                     batch_norm=True)
     batch_size = tf.shape(h2)[0]
     deconv_shape = [batch_size, 28, 28, 1]
-    h3 = conv_layer(h2, filter=[5, 5, 1, 32], stride=[1, 2, 2, 1],
+    h3 = conv_layer(h2, filter=[4, 4, 1, 32], stride=[1, 2, 2, 1],
                     output_shape=deconv_shape,
                     inverse=True, activation=None,
                     scope='conv3', training=training,
@@ -150,11 +150,11 @@ def discriminator(input, training=True, h_dim=1024, keep_prob=0.5,
         return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1], padding='SAME')
     input = tf.reshape(input, [-1, 28, 28, 1])
-    h0 = conv_layer(input, [5, 5, 1, 128], [1, 1, 1, 1], activation='leakyrelu',
+    h0 = conv_layer(input, [4, 4, 1, 128], [1, 1, 1, 1], activation='leakyrelu',
                     scope='conv0', training=training, batch_norm=True)
     hpool_0 = max_pool_2x2(h0)
 
-    h1 = conv_layer(hpool_0, [5, 5, 128, 64], [1, 1, 1, 1],
+    h1 = conv_layer(hpool_0, [4, 4, 128, 64], [1, 1, 1, 1],
                     activation='leakyrelu', scope='conv1',
                     training=training, batch_norm=True)
     hpool_1 = max_pool_2x2(h1)
