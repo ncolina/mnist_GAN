@@ -263,7 +263,7 @@ class GAN(object):
                                     self.keep_prob: 1.0})
                 g_hist.append(g_loss)
                 iter_time = time.time() - start
-                if i % 1 == 0:
+                if i % 50 == 0:
                     print("Iteration {}:\tTime={:.2f}s\tD Loss={:.6f}\tG Loss={:.6f}"
                           .format(i, iter_time, d_loss, g_loss))
                     if preview:
