@@ -302,7 +302,7 @@ class GAN(object):
                     ax[0][0].axis('off')
                     ax[1][0].axis('off')
                     plt.pause(0.001)
-                    ax[0][0].set_title('Iteration {}'.format(i))
+                    ax[0][0].set_title('Epoch {}'.format(epoch))
                     ax[0][1].set_title('G Loss')
                     ax[1][1].set_title('D Loss')
                     plt.pause(0.001)
