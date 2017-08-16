@@ -119,23 +119,23 @@ def optimizer(loss, var_list, algo='adam'):
 
 
 def generator(input, training=True, hdim=1024, minibatch_disc=False):
-    h0 = dense_layer(input, hdim, activation='leakyrelu',
-                     scope='dense0', training=training)
-    if minibatch_disc:
-        h0 = minibatch_disc_layer(h0)
-    h1 = dense_layer(h0, 7*7*64, activation='leakyrelu',
+    # h0 = dense_layer(input, hdim, activation='leakyrelu',
+    #                   scope='dense0', training=training)
+    # if minibatch_disc:
+    #    h0 = minibatch_disc_layer(h0)
+    h1 = dense_layer(input, 7*7*256, activation='relu',
                      scope='dense1', training=training)
-    h1_reshape = tf.reshape(h1, [-1, 7, 7, 64])
+    h1_reshape = tf.reshape(h1, [-1, 7, 7, 256])
     batch_size = tf.shape(h1_reshape)[0]
-    deconv_shape = [batch_size, 14, 14, 32]
-    h2 = conv_layer(h1_reshape, filter=[4, 4, 32, 64], stride=[1, 2, 2, 1],
+    deconv_shape = [batch_size, 14, 14, 128]
+    h2 = conv_layer(h1_reshape, filter=[3, 3, 128, 256], stride=[1, 2, 2, 1],
                     output_shape=deconv_shape,
-                    inverse=True, activation='leakyrelu',
+                    inverse=True, activation='relu',
                     scope='conv2', training=training,
                     batch_norm=True)
     batch_size = tf.shape(h2)[0]
     deconv_shape = [batch_size, 28, 28, 1]
-    h3 = conv_layer(h2, filter=[4, 4, 1, 32], stride=[1, 2, 2, 1],
+    h3 = conv_layer(h2, filter=[3, 3, 1, 128], stride=[1, 2, 2, 1],
                     output_shape=deconv_shape,
                     inverse=True, activation=None,
                     scope='conv3', training=training,
@@ -150,15 +150,15 @@ def discriminator(input, training=True, h_dim=1024, keep_prob=0.5,
         return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1], padding='SAME')
     input = tf.reshape(input, [-1, 28, 28, 1])
-    h0 = conv_layer(input, [4, 4, 1, 128], [1, 1, 1, 1], activation='leakyrelu',
+    h0 = conv_layer(input, [5, 5, 1, 128], [1, 2, 2, 1], activation='leakyrelu',
                     scope='conv0', training=training, batch_norm=True)
     hpool_0 = max_pool_2x2(h0)
 
-    h1 = conv_layer(hpool_0, [4, 4, 128, 64], [1, 1, 1, 1],
+    h1 = conv_layer(hpool_0, [5, 5, 128, 256], [1, 2, 2, 1],
                     activation='leakyrelu', scope='conv1',
                     training=training, batch_norm=True)
     hpool_1 = max_pool_2x2(h1)
-    hflat_1 = tf.reshape(hpool_1, [-1, 7*7*64])
+    hflat_1 = tf.reshape(hpool_1, [-1, 2*2*256])
     if minibatch_disc:
         hflat_1 = minibatch_disc_layer(hflat_1)
     h2 = dense_layer(hflat_1, h_dim, scope='dense2', activation='leakyrelu',
@@ -227,7 +227,6 @@ class GAN(object):
         self.d_opt = optimizer(self.d_loss, self.d_param, algo='adam')
         self.g_opt = optimizer(self.g_loss, self.g_param, algo='adam')
 
-
     def train(self, data, n_iter=1000, k_iter=2, minibatch_size=128,
               preview=False):
         print('Starting Training')
@@ -295,4 +294,4 @@ if __name__ == '__main__':
     model = GAN()
     mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
     hist = model.train(mnist, n_iter=20000, k_iter=2,
-                       preview=True, minibatch_size=128)
+                       preview=True, minibatch_size=64)
