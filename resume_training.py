@@ -6,7 +6,7 @@ def restore_session(path):
     saver.restore(sess, tf.train.latest_checkpoint(path))
     return sess
 
-if __name__ ==__main__:
+if __name__ == '__main__':
     model = GAN()
     mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
     hist = model.train(mnist, n_iter=20000, k_iter=1,
