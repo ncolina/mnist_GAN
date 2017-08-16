@@ -247,7 +247,7 @@ class GAN(object):
         with tf.Session() as sess:
             saver = tf.train.Saver()
             if resume:
-                saver.restore(sess, tf.train.latest_checkpoint('mnist-gan'))
+                saver.restore(sess, 'mnist-gan')
 
             sess.run(tf.global_variables_initializer())
             g_hist = []
@@ -255,7 +255,7 @@ class GAN(object):
             tf.get_default_graph().finalize()
             for epoch in range(n_epochs):
                 start = time.time()
-                n_iter=int(data.train.num_examples / minibatch_size)
+                n_iter = int(data.train.num_examples / minibatch_size)
                 for i in range(n_iter):
                     for j in range(k_iter):
                         batch = data.train.next_batch(minibatch_size)
