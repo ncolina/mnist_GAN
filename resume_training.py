@@ -9,5 +9,5 @@ def restore_session(path):
 if __name__ == '__main__':
     model = GAN()
     mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
-    hist = model.train(mnist, n_iter=20000, k_iter=1,
+    hist = model.train(mnist, n_epochs=20000, k_iter=1,
                        preview=True, minibatch_size=32, resume=True)
