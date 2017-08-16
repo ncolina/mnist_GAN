@@ -38,7 +38,7 @@ def dense_layer(input, output_dim, activation=None, scope=None,
         w = tf.get_variable(
             'w',
             [input.get_shape()[1], output_dim],
-            initializer=tf.random_normal_initializer(stddev=stddev)
+            initializer=tf.contrib.layers.xavier_initializer()
         )
 
         b = tf.get_variable(
@@ -78,7 +78,7 @@ def conv_layer(input, filter, stride, output_shape=None, inverse=False,
             w = tf.get_variable(
                 'w',
                 filter,
-                initializer=tf.random_normal_initializer(stddev=0.02)
+                initializer=tf.contrib.layers.xavier_initializer()
             )
             b = tf.get_variable(
                 'b',
@@ -128,20 +128,32 @@ def generator(input, training=True, hdim=1024, minibatch_disc=False):
     h1_reshape = tf.reshape(h1, [-1, 7, 7, 256])
     batch_size = tf.shape(h1_reshape)[0]
     deconv_shape = [batch_size, 14, 14, 128]
-    h2 = conv_layer(h1_reshape, filter=[3, 3, 128, 256], stride=[1, 2, 2, 1],
+    h2 = conv_layer(h1_reshape, filter=[7, 7, 128, 256], stride=[1, 2, 2, 1],
                     output_shape=deconv_shape,
                     inverse=True, activation='relu',
                     scope='conv2', training=training,
                     batch_norm=True)
-    batch_size = tf.shape(h2)[0]
+    #batch_size = tf.shape(h2)[0]
+    deconv_shape = [batch_size, 28, 28, 64]
+    h3 = conv_layer(h2, filter=[5, 5, 64, 128], stride=[1, 2, 2, 1],
+                    output_shape=deconv_shape,
+                    inverse=True, activation='relu',
+                    scope='conv3', training=training,
+                    batch_norm=True)
+    deconv_shape = [batch_size, 28, 28, 32]
+    h4 = conv_layer(h3, filter=[3, 3, 32, 64], stride=[1, 1, 1, 1],
+                    output_shape=deconv_shape,
+                    inverse=True, activation='relu',
+                    scope='conv4', training=training,
+                    batch_norm=False)
     deconv_shape = [batch_size, 28, 28, 1]
-    h3 = conv_layer(h2, filter=[3, 3, 1, 128], stride=[1, 2, 2, 1],
+    h5 = conv_layer(h4, filter=[1, 1, 1, 32], stride=[1, 1, 1, 1],
                     output_shape=deconv_shape,
                     inverse=True, activation=None,
-                    scope='conv3', training=training,
+                    scope='conv5', training=training,
                     batch_norm=False)
-    h3 = tf.reshape(h3, [batch_size, 784])
-    return tf.sigmoid(h3), h3
+    h5 = tf.reshape(h5, [batch_size, 784])
+    return tf.sigmoid(h5)
 
 
 def discriminator(input, training=True, h_dim=1024, keep_prob=0.5,
@@ -180,7 +192,7 @@ class GAN(object):
         with tf.variable_scope('G'):
             self.x = tf.placeholder(tf.float32, [None, 100], name='g-input')
             self.G = generator(self.x, training=self.training,
-                               minibatch_disc=True)
+                               minibatch_disc=False)
 
         # Discriminator Network
         self.z = tf.placeholder(tf.float32, [None, 784], name='d-input')
@@ -190,13 +202,13 @@ class GAN(object):
             self.D1, self.D1_logits = discriminator(self.z,
                                                     training=self.training,
                                                     keep_prob=self.keep_prob,
-                                                    minibatch_disc=True)
+                                                    minibatch_disc=False)
         # Second Discriminator for generated images
         with tf.variable_scope('D', reuse=True):
             self.D2, self.D2_logits = discriminator(self.G,
                                                     training=self.training,
                                                     keep_prob=self.keep_prob,
-                                                    minibatch_disc=True)
+                                                    minibatch_disc=False)
 
         def sigmoid_cross_entropy_with_logits(x, y):
             try:
@@ -227,64 +239,73 @@ class GAN(object):
         self.d_opt = optimizer(self.d_loss, self.d_param, algo='adam')
         self.g_opt = optimizer(self.g_loss, self.g_param, algo='adam')
 
-    def train(self, data, n_iter=1000, k_iter=2, minibatch_size=128,
-              preview=False):
+    def train(self, data, n_epochs=1000, k_iter=2, minibatch_size=128,
+              preview=False, resume=False):
         print('Starting Training')
         if preview:  # initialize plotting environment
             fig, ax = plt.subplots(2, 2)
         with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
             saver = tf.train.Saver()
+            if resume:
+                saver.restore(sess, tf.train.latest_checkpoint('mnist-gan'))
+
+            sess.run(tf.global_variables_initializer())
             g_hist = []
             d_hist = []
             tf.get_default_graph().finalize()
-
-            for i in range(n_iter):
+            for epoch in range(n_epochs):
                 start = time.time()
-                for j in range(k_iter):
-                    batch = data.train.next_batch(minibatch_size)
-                    d_loss, d_result = sess.run(
-                                            [self.d_loss, self.d_opt],
-                                            {self.z: batch[0],
-                                             self.x: generator_input(
-                                                    minibatch_size),
-                                             self.training: True,
-                                             self.keep_prob: 0.5})
-                    d_hist.append(d_loss)
+                n_iter=int(data.train.num_examples / minibatch_size)
+                for i in range(n_iter):
+                    for j in range(k_iter):
+                        batch = data.train.next_batch(minibatch_size)
+                        d_loss, d_result = sess.run(
+                                                [self.d_loss, self.d_opt],
+                                                {self.z: batch[0],
+                                                 self.x: generator_input(
+                                                        minibatch_size),
+                                                 self.training: True,
+                                                 self.keep_prob: 0.5})
+                        d_hist.append(d_loss)
 
-                batch = data.train.next_batch(minibatch_size)
-                g_loss, g_result = sess.run(
-                                [self.g_loss, self.g_opt],
-                                {self.z: batch[0],
-                                    self.x: generator_input(
-                                        minibatch_size),
-                                    self.training: True,
-                                    self.keep_prob: 1.0})
-                g_hist.append(g_loss)
-                iter_time = time.time() - start
-                if i % 50 == 0:
-                    print("Iteration {}:\tTime={:.2f}s\tD Loss={:.6f}\tG Loss={:.6f}"
-                          .format(i, iter_time, d_loss, g_loss))
-                    if preview:
-                        output = sess.run(self.G,
-                                          {self.x:
-                                           generator_input(size=2),
-                                           self.training: False,
-                                           self.keep_prob: 1.0})
-                        output = np.reshape(output[1], (-1, 28, 28))
-                        plt.ion()
-                        ax[0][0].imshow(output[0], cmap='Greys')
-                        ax[1][0].imshow(output[1], cmap='Greys')
-                        ax[0][1].plot(g_hist)
-                        ax[1][1].plot(d_hist)
-                        plt.pause(0.001)
-                        ax[0][0].axis('off')
-                        ax[1][0].axis('off')
-                        plt.pause(0.001)
-                        ax[0][0].set_title('Iteration {}'.format(i))
-                        ax[0][1].set_title('G Loss')
-                        ax[1][1].set_title('D Loss')
-                        plt.pause(0.001)
+                    batch = data.train.next_batch(minibatch_size)
+                    g_loss, g_result = sess.run(
+                                    [self.g_loss, self.g_opt],
+                                    {self.z: batch[0],
+                                        self.x: generator_input(
+                                            minibatch_size),
+                                        self.training: True,
+                                        self.keep_prob: 1.0})
+                    g_hist.append(g_loss)
+                epoch_time = time.time() - start
+                print("Epoch {}:\tTime={:.2f}s\tD Loss={:.6f}\tG Loss={:.6f}"
+                      .format(epoch, epoch_time, d_loss, g_loss))
+                if preview:
+                    output1 = sess.run(self.G,
+                                       {self.x:
+                                       generator_input(size=1),
+                                       self.training: False,
+                                       self.keep_prob: 1.0})
+                    output1 = np.reshape(output1, (28, 28))
+                    output2 = sess.run(self.G,
+                                       {self.x:
+                                       generator_input(size=1),
+                                       self.training: False,
+                                       self.keep_prob: 1.0})
+                    output2 = np.reshape(output2, (28, 28))
+                    plt.ion()
+                    ax[0][0].imshow(output1, cmap='Greys')
+                    ax[1][0].imshow(output2, cmap='Greys')
+                    ax[0][1].plot(g_hist)
+                    ax[1][1].plot(d_hist)
+                    plt.pause(0.001)
+                    ax[0][0].axis('off')
+                    ax[1][0].axis('off')
+                    plt.pause(0.001)
+                    ax[0][0].set_title('Iteration {}'.format(i))
+                    ax[0][1].set_title('G Loss')
+                    ax[1][1].set_title('D Loss')
+                    plt.pause(0.001)
                 saver.save(sess, 'mnist-gan')
         if preview:
             plt.show()
@@ -294,5 +315,5 @@ class GAN(object):
 if __name__ == '__main__':
     model = GAN()
     mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
-    hist = model.train(mnist, n_iter=20000, k_iter=1,
-                       preview=True, minibatch_size=256)
+    hist = model.train(mnist, n_epochs=10000, k_iter=1,
+                       preview=True, minibatch_size=32)
