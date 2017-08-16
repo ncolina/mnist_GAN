@@ -140,7 +140,7 @@ def generator(input, training=True, hdim=1024, minibatch_disc=False):
                     inverse=True, activation=None,
                     scope='conv3', training=training,
                     batch_norm=False)
-    h3 = tf.reshape(h3, [-1, 784])
+    h3 = tf.reshape(h3, [batch_size, 784])
     return tf.sigmoid(h3), h3
 
 
@@ -268,12 +268,13 @@ class GAN(object):
                     if preview:
                         output = sess.run(self.G,
                                           {self.x:
-                                           generator_input(size=1),
+                                           generator_input(size=2),
                                            self.training: False,
                                            self.keep_prob: 1.0})
-                        output = np.reshape(output, (-1, 28, 28))
+                        output = np.reshape(output[1], (-1, 28, 28))
                         plt.ion()
                         ax[0][0].imshow(output[0], cmap='Greys')
+                        ax[1][0].imshow(output[1], cmap='Greys')
                         ax[0][1].plot(g_hist)
                         ax[1][1].plot(d_hist)
                         plt.pause(0.001)
@@ -293,5 +294,5 @@ class GAN(object):
 if __name__ == '__main__':
     model = GAN()
     mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
-    hist = model.train(mnist, n_iter=20000, k_iter=2,
-                       preview=True, minibatch_size=64)
+    hist = model.train(mnist, n_iter=20000, k_iter=1,
+                       preview=True, minibatch_size=256)
